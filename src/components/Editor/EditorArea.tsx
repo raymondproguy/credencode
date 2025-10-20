@@ -1,6 +1,6 @@
 import React from 'react'
 import { useEditor } from '../../contexts/EditorContext'
-import MonacoWrapper from './MonacoWrappper'
+import MonacoWrapper from './MonacoWrapper'
 
 const EditorArea = () => {
   const { files, activeFile, setActiveFile, updateFile } = useEditor()
