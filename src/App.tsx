@@ -5,7 +5,7 @@ import { TabManager } from './components/Tabs/TabManager';
 import { MonacoEditor } from './components/Editor/MonacoEditor';
 import { ProjectModal } from './components/ProjectManager/ProjectModal';
 import { useFileSystem } from './hooks/useFileSystem';
-import { Tab } from './types';
+import { Tab, FileSystemItem } from './types';
 import './App.css';
 
 function App() {
@@ -24,7 +24,9 @@ function App() {
     updateFileContent,
     getFileContent,
     getFileLanguage,
-    currentProjectFiles
+    currentProjectFiles,
+    createFile,
+    createFolder
   } = useFileSystem();
 
   // Open default file on startup
@@ -79,6 +81,94 @@ function App() {
       editor.getAction('editor.action.formatDocument').run();
     }
   }, [editor]);
+
+  // Handle project import
+  const handleProjectImport = useCallback((projectData: { name: string; files: Record<string, FileSystemItem> }) => {
+    // Create a new project ID
+    const projectId = projectData.name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+    
+    // Add the imported project to our projects
+    const newProjects = {
+      ...projects,
+      [projectId]: {
+        id: projectId,
+        name: projectData.name,
+        files: projectData.files
+      }
+    };
+    
+    // Update localStorage (we'll need to update our hook for this)
+    // For now, we'll use a simple approach
+    localStorage.setItem('credencode_projects', JSON.stringify(newProjects));
+    
+    // Switch to the new project
+    setCurrentProject(projectId);
+    
+    // Close all tabs
+    setTabs([]);
+    setActiveTab(null);
+    
+    // Close the modal
+    setShowProjects(false);
+    
+    // Reload the page to see the new project
+    window.location.reload();
+  }, [projects, setCurrentProject]);
+
+  // Simple project creation (we'll enhance this later)
+  const handleCreateProject = useCallback((projectName: string) => {
+    const projectId = projectName.toLowerCase().replace(/[^a-z0-9]/g, '-');
+    
+    const newProject = {
+      id: projectId,
+      name: projectName,
+      files: {
+        'index.html': {
+          type: 'file',
+          content: `<!DOCTYPE html>
+<html>
+<head>
+    <title>${projectName}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+            color: #333;
+        }
+        h1 { color: #007acc; }
+    </style>
+</head>
+<body>
+    <h1>Welcome to ${projectName}</h1>
+    <p>Start coding your amazing project!</p>
+</body>
+</html>`,
+          language: 'html'
+        },
+        'style.css': {
+          type: 'file',
+          content: `/* ${projectName} Styles */\nbody {\n    margin: 0;\n    padding: 20px;\n    font-family: Arial, sans-serif;\n}`,
+          language: 'css'
+        },
+        'script.js': {
+          type: 'file',
+          content: `// ${projectName} JavaScript\nconsole.log('Hello from ${projectName}!');`,
+          language: 'javascript'
+        }
+      }
+    };
+    
+    const newProjects = {
+      ...projects,
+      [projectId]: newProject
+    };
+    
+    localStorage.setItem('credencode_projects', JSON.stringify(newProjects));
+    setCurrentProject(projectId);
+    setShowProjects(false);
+    window.location.reload();
+  }, [projects, setCurrentProject]);
 
   const currentTab = tabs.find(tab => tab.id === activeTab);
 
@@ -145,6 +235,10 @@ function App() {
                 <div className="placeholder-content">
                   <h3>Welcome to CredenCode</h3>
                   <p>Select a file from the sidebar to start editing</p>
+                  <div style={{ marginTop: '20px', fontSize: '14px', color: '#969696' }}>
+                    <p>💡 <strong>New Feature:</strong> Export/Import projects as ZIP files!</p>
+                    <p>Click the folder icon in header to access Project Manager.</p>
+                  </div>
                 </div>
               </div>
             )}
@@ -157,6 +251,7 @@ function App() {
           projects={projects}
           currentProject={currentProject}
           onProjectSelect={setCurrentProject}
+          onProjectImport={handleProjectImport}
           onClose={() => setShowProjects(false)}
         />
       )}

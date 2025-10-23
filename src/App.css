@@ -617,3 +617,55 @@ body {
 .editor-container .monaco-editor {
   height: 100% !important;
 }
+
+/* ===== MODAL TABS ===== */
+.modal-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+}
+
+.tab-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 14px;
+  font-weight: 500;
+  border-bottom: 2px solid transparent;
+}
+
+.tab-button:hover {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+}
+
+.tab-button.active {
+  color: var(--accent-blue);
+  border-bottom-color: var(--accent-blue);
+  background: var(--bg-primary);
+}
+
+/* ===== EXPORT/IMPORT STYLES ===== */
+.export-import-buttons {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.export-import-info {
+  padding: 16px;
+  background: var(--bg-tertiary);
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.export-import-info p {
+  margin: 0;
+}
