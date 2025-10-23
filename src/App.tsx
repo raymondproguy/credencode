@@ -5,11 +5,13 @@ import { TabManager } from './components/Tabs/TabManager';
 import { MonacoEditor } from './components/Editor/MonacoEditor';
 import { ProjectModal } from './components/ProjectManager/ProjectModal';
 import { useFileSystem } from './hooks/useFileSystem';
+import { useGit } from './hooks/useGit';
 import { Tab, FileSystemItem } from './types';
 import './App.css';
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [activePanel, setActivePanel] = useState<'explorer' | 'git'>('explorer');
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeTab, setActiveTab] = useState<string | null>(null);
@@ -28,6 +30,22 @@ function App() {
     createFile,
     createFolder
   } = useFileSystem();
+
+  // Initialize Git
+  const {
+    isInitialized: gitInitialized,
+    fileStatus: gitFileStatus,
+    commits: gitCommits,
+    branches: gitBranches,
+    currentBranch: gitCurrentBranch,
+    user: gitUser,
+    stageFiles: gitStageFiles,
+    commit: gitCommit,
+    createBranch: gitCreateBranch,
+    checkoutBranch: gitCheckoutBranch,
+    setUserInfo: gitSetUserInfo,
+    refreshGitData: gitRefreshData
+  } = useGit(currentProject, currentProjectFiles);
 
   // Open default file on startup
   useEffect(() => {
@@ -56,14 +74,26 @@ function App() {
     }
   }, [currentProjectFiles, getFileContent, getFileLanguage, tabs.length]);
 
+  // Refresh git data when files change
+  useEffect(() => {
+    if (gitInitialized) {
+      gitRefreshData();
+    }
+  }, [currentProjectFiles, gitInitialized, gitRefreshData]);
+
   const handleEditorChange = useCallback((value: string | undefined) => {
     if (activeTab) {
       setTabs(prev => prev.map(tab => 
         tab.id === activeTab ? { ...tab, content: value || '' } : tab
       ));
       updateFileContent(activeTab, value || '');
+      
+      // Refresh git status after file change
+      if (gitInitialized) {
+        setTimeout(() => gitRefreshData(), 100);
+      }
     }
-  }, [activeTab, updateFileContent]);
+  }, [activeTab, updateFileContent, gitInitialized, gitRefreshData]);
 
   const handleRunCode = useCallback(() => {
     if (activeTab) {
@@ -82,12 +112,40 @@ function App() {
     }
   }, [editor]);
 
+  // Git handlers
+  const handleGitStageFiles = useCallback(async (filepaths: string[]) => {
+    await gitStageFiles(filepaths);
+  }, [gitStageFiles]);
+
+  const handleGitCommit = useCallback(async (message: string) => {
+    const success = await gitCommit(message);
+    if (success) {
+      console.log('Commit successful!');
+    }
+  }, [gitCommit]);
+
+  const handleGitCreateBranch = useCallback(async (name: string) => {
+    const success = await gitCreateBranch(name);
+    if (success) {
+      console.log('Branch created successfully!');
+    }
+  }, [gitCreateBranch]);
+
+  const handleGitCheckoutBranch = useCallback(async (name: string) => {
+    const success = await gitCheckoutBranch(name);
+    if (success) {
+      console.log('Switched to branch:', name);
+    }
+  }, [gitCheckoutBranch]);
+
+  const handleGitUserChange = useCallback((user: { name: string; email: string }) => {
+    gitSetUserInfo(user);
+  }, [gitSetUserInfo]);
+
   // Handle project import
   const handleProjectImport = useCallback((projectData: { name: string; files: Record<string, FileSystemItem> }) => {
-    // Create a new project ID
     const projectId = projectData.name.toLowerCase().replace(/[^a-z0-9]/g, '-');
     
-    // Add the imported project to our projects
     const newProjects = {
       ...projects,
       [projectId]: {
@@ -97,75 +155,10 @@ function App() {
       }
     };
     
-    // Update localStorage (we'll need to update our hook for this)
-    // For now, we'll use a simple approach
     localStorage.setItem('credencode_projects', JSON.stringify(newProjects));
-    
-    // Switch to the new project
     setCurrentProject(projectId);
-    
-    // Close all tabs
     setTabs([]);
     setActiveTab(null);
-    
-    // Close the modal
-    setShowProjects(false);
-    
-    // Reload the page to see the new project
-    window.location.reload();
-  }, [projects, setCurrentProject]);
-
-  // Simple project creation (we'll enhance this later)
-  const handleCreateProject = useCallback((projectName: string) => {
-    const projectId = projectName.toLowerCase().replace(/[^a-z0-9]/g, '-');
-    
-    const newProject = {
-      id: projectId,
-      name: projectName,
-      files: {
-        'index.html': {
-          type: 'file',
-          content: `<!DOCTYPE html>
-<html>
-<head>
-    <title>${projectName}</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            padding: 20px;
-            background: #f5f5f5;
-            color: #333;
-        }
-        h1 { color: #007acc; }
-    </style>
-</head>
-<body>
-    <h1>Welcome to ${projectName}</h1>
-    <p>Start coding your amazing project!</p>
-</body>
-</html>`,
-          language: 'html'
-        },
-        'style.css': {
-          type: 'file',
-          content: `/* ${projectName} Styles */\nbody {\n    margin: 0;\n    padding: 20px;\n    font-family: Arial, sans-serif;\n}`,
-          language: 'css'
-        },
-        'script.js': {
-          type: 'file',
-          content: `// ${projectName} JavaScript\nconsole.log('Hello from ${projectName}!');`,
-          language: 'javascript'
-        }
-      }
-    };
-    
-    const newProjects = {
-      ...projects,
-      [projectId]: newProject
-    };
-    
-    localStorage.setItem('credencode_projects', JSON.stringify(newProjects));
-    setCurrentProject(projectId);
     setShowProjects(false);
     window.location.reload();
   }, [projects, setCurrentProject]);
@@ -183,6 +176,8 @@ function App() {
         onRunCode={handleRunCode}
         onShowProjects={() => setShowProjects(true)}
         currentProjectName={projects[currentProject]?.name || 'CredenCode'}
+        activePanel={activePanel}
+        setActivePanel={setActivePanel}
       />
 
       <div className="main-container">
@@ -205,6 +200,17 @@ function App() {
             setActiveTab(path);
             setSidebarOpen(false);
           }}
+          activePanel={activePanel}
+          gitFileStatus={gitFileStatus}
+          gitCommits={gitCommits}
+          gitBranches={gitBranches}
+          gitCurrentBranch={gitCurrentBranch}
+          gitUser={gitUser}
+          onGitStageFiles={handleGitStageFiles}
+          onGitCommit={handleGitCommit}
+          onGitCreateBranch={handleGitCreateBranch}
+          onGitCheckoutBranch={handleGitCheckoutBranch}
+          onGitUserChange={handleGitUserChange}
         />
 
         <div className="editor-area">
@@ -236,8 +242,13 @@ function App() {
                   <h3>Welcome to CredenCode</h3>
                   <p>Select a file from the sidebar to start editing</p>
                   <div style={{ marginTop: '20px', fontSize: '14px', color: '#969696' }}>
-                    <p>💡 <strong>New Feature:</strong> Export/Import projects as ZIP files!</p>
-                    <p>Click the folder icon in header to access Project Manager.</p>
+                    <p>🚀 <strong>New Feature:</strong> Git Version Control!</p>
+                    <p>Click the Git icon in header to access version control.</p>
+                    {gitInitialized && (
+                      <p style={{ marginTop: '10px', fontStyle: 'italic' }}>
+                        Git repository initialized for this project
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>

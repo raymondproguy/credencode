@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@isomorphic-git/lightning-fs": "^4.6.2",
     "@monaco-editor/react": "^4.6.0",
     "@types/jszip": "^3.4.0",
     "jszip": "^3.10.1",

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Menu, Play, Moon, Sun, FolderOpen } from 'lucide-react';
+import { Menu, Play, Moon, Sun, FolderOpen, GitBranch } from 'lucide-react';
 
 interface HeaderProps {
   sidebarOpen: boolean;
@@ -10,6 +10,9 @@ interface HeaderProps {
   onRunCode: () => void;
   onShowProjects: () => void;
   currentProjectName: string;
+  // Git props
+  activePanel: 'explorer' | 'git';
+  setActivePanel: (panel: 'explorer' | 'git') => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -20,7 +23,9 @@ export const Header: React.FC<HeaderProps> = ({
   onFormatCode,
   onRunCode,
   onShowProjects,
-  currentProjectName
+  currentProjectName,
+  activePanel,
+  setActivePanel
 }) => {
   return (
     <header className="header glass-effect">
@@ -59,6 +64,29 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       <div className="header-actions">
+        {/* Panel Toggles */}
+        <button 
+          className={`icon-btn ${activePanel === 'explorer' ? 'active' : ''}`}
+          onClick={() => {
+            setSidebarOpen(true);
+            setActivePanel('explorer');
+          }}
+          title="File Explorer"
+        >
+          <Menu size={18} />
+        </button>
+
+        <button 
+          className={`icon-btn ${activePanel === 'git' ? 'active' : ''}`}
+          onClick={() => {
+            setSidebarOpen(true);
+            setActivePanel('git');
+          }}
+          title="Git Version Control"
+        >
+          <GitBranch size={18} />
+        </button>
+
         <button 
           className="icon-btn" 
           onClick={onFormatCode}
